@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Game cell N° <span id="game_id"></span></h1>
+    <button id= "btnNewGame">New Game</button>
+    <input type="text" id ="txtGameId">
+    <button id= "btnJoinGame">Join Game</button>
+    <div id="divPlayers"></div>
+    <div id="divBoard"></div>
+    <script>
+        //Elements
+        const btnNewGame = document.getElementById("btnNewGame")
+        const btnJoinGame = document.getElementById("btnJoinGame")
+        const txtGameId = document.getElementById("txtGameId")
+        const divPlayers= document.getElementById("divPlayers")
+        const divBoard= document.getElementById("divBoard")
+        const span_game_id = document.getElementById("game_id")
+        //Events
+        btnJoinGame.addEventListener('click',e=>{
+            if(gameId ===null) {
+                gameId = txtGameId.value;  
+                span_game_id.textContent = txtGameId.value;
+            }
+            const payLoad = 
+            {
+                "method": "join",
+                "clientId": clientId,
+                "gameId" : gameId
+            }
+            ws.send(JSON.stringify(payLoad))
+
+        })
+        btnNewGame.addEventListener('click',e=>{
+            const payLoad = 
+            {
+                "method": "create",
+                "clientId": clientId,
+                
+            }
+            ws.send(JSON.stringify(payLoad))
+        })
+
+        let clientId = null;
+        let gameId = null;
+        let playerColor = null;
+        let ws = new WebSocket("ws://localhost:9090");
+        ws.onmessage = message =>{
+            const response = JSON.parse(message.data);
+            //connect
+            if(response.method==="connect")
+            {
+                clientId = response.clientId;
+            }
+            //create
+            if(response.method==="create")
+            {
+                gameId = response.game.id;
+                span_game_id.textContent = response.game.id;
+            }
+
+            //update
+            if(response.method==="update")
+            {
+                for(const b of Object.keys(response.game.state))
+                {
+                    const color = response.game.state[b]
+                    const ballObject = document.getElementById("ball"+b)
+                    ballObject.style.background = color
+                }
+            }
+            
+            //join
+            if(response.method==="join")
+            {
+                const game = response.game;
+                while (divPlayers.firstChild) {
+                        divPlayers.removeChild(divPlayers.firstChild)
+                    }
+                game.clients.forEach(c=>{
+                    const d = document.createElement("div");
+                    d.style.width = "200px";
+                    d.style.background = c.color;
+                    d.textContent = c.clientId;
+                    divPlayers.appendChild(d)
+                    if(c.clientId === clientId) playerColor=  c.color;
+                })
+                
+                while (divBoard.firstChild) {
+                    divBoard.removeChild(divBoard.firstChild)
+                    }
+
+                for (let i = 0; i < game.balls; i++) {
+                    const b = document.createElement("button");
+                    b.id = "ball"+(i+1);
+                    b.tag=i+1;
+                    b.textContent = i+1;
+                    b.style.width="100px"
+                    b.style.height="100px"
+                    b.addEventListener("click",e=>{
+                        b.style.background = playerColor
+                        const payLoad = {
+                            "method":"play",
+                            "gameId": gameId,
+                            "clientId": clientId,
+                            "ballId":b.tag,
+                            "color":playerColor
+                        }
+                        ws.send(JSON.stringify(payLoad))
+                    });
+                    divBoard.appendChild(b);
+                    
+                }
+            }
+        }
+    </script>
+</body>
+</html>
